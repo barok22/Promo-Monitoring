@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lady's Cluster Promo monitoring</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: 	#FFF5EE;
+    }
+  select{
+    font-size: 25px;
+    font-weight: bold;
+    background-color: 	#FFF5EE;
+  }
+  input{
+    font-size: 25px;
+  }
+    select, input {
+      padding: 6px;
+      width: 100%;
+      margin-bottom: 20px;
+      text-align: center;
+      border: 2px solid;
+    }
+    .product-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .product-name {
+      flex: 1;
+      font-size: 17px;
+    }
+    .qty-input {
+      width: 50px;
+    }
+    .message {
+      color: green;
+      margin-top: 10px;
+      text-align: center;
+    }
+  h2, p{
+    text-align: center;
+    margin-bottom: 0px;
+  }
+  
+  </style>
+</head>
+<body>
+  <h2>Lady's Cluster<br> Promo Sales Monitoring</h2>
+  <p><i>Select Store Code</i></p>
+  <select id="sheetSelector"></select>
+  <div id="productList"></div>
+  <div class="message" id="message"></div>
+  <script>
+    const backendUrl = 'https://script.google.com/macros/s/AKfycbxa9MJ48nKArHSgzBSubzQFIJX67cRaSpwqoRVtuhxCG7AjZ4EYIrwb-ekiXOUkHdTE9g/exec'; // <-- Replace with Apps Script Web App URL
+
+    async function fetchSheetNames() {
+      const res = await fetch(`${backendUrl}?action=getSheetNames`);
+      const sheetNames = await res.json();
+      const select = document.getElementById('sheetSelector');
+      select.innerHTML = '';
+      sheetNames.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      if (sheetNames.length) {
+        loadSheetData(sheetNames[0]);
+      }
+    }
+
+    async function loadSheetData(sheetName) {
+      const res = await fetch(`${backendUrl}?action=getSheetData&sheet=${encodeURIComponent(sheetName)}`);
+      const data = await res.json(); // [['Product', 'Qty'], ['Apple', 0], ...]
+      displayProducts(sheetName, data);
+    }
+
+    function displayProducts(sheetName, data) {
+      const list = document.getElementById('productList');
+      list.innerHTML = '';
+
+      for (let i = 1; i < data.length; i++) {
+        const [product, qty] = data[i];
+
+        const row = document.createElement('div');
+        row.className = 'product-row';
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'product-name';
+        nameDiv.textContent = product;
+
+        const qtyInput = document.createElement('input');
+        qtyInput.className = 'qty-input';
+        qtyInput.type = 'number';
+        qtyInput.value = qty;
+        qtyInput.dataset.index = i;
+
+        qtyInput.addEventListener('input', async function () {
+          const newQty = this.value;
+          const rowIndex = parseInt(this.dataset.index);
+          const body = JSON.stringify({ sheetName, rowIndex, newQty });
+          const res = await fetch(backendUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body
+          });
+          const text = await res.text();
+          showMessage(text);
+        });
+
+        row.appendChild(nameDiv);
+        row.appendChild(qtyInput);
+        list.appendChild(row);
+      }
+    }
+
+    function showMessage(msg) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      setTimeout(() => el.textContent = '', 2000);
+    }
+
+    document.getElementById('sheetSelector').addEventListener('change', function () {
+      loadSheetData(this.value);
+    });
+
+    window.onload = fetchSheetNames;
+  </script>
+</body>
+</html>
